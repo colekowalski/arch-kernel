@@ -1,7 +1,7 @@
 # Maintainer: Cole Kowalski  <cole@northernbloc.org>
 
 pkgbase=linux-cmk
-pkgver=5.5.2
+pkgver=5.5.6
 pkgrel=1
 pkgdesc='Linux'
 _srctag=v${pkgver##*.}
@@ -25,9 +25,9 @@ validpgpkeys=(
   '647F28654894E3BD457199BE38DBBDC86092693E'  # Greg Kroah-Hartman
   '8218F88849AAC522E94CF470A5E9288C4FA415FA'  # Jan Alexander Steffens (heftig)
 )
-sha256sums=('24f5f383b0337374f160723bcf3bf679c75cb5bd3fd0824a56998e47c04ef99e'
-            'dc1aea60e65e867fb0df0774238ed64c43bfe8d87c995ebf5f05e00a39f65455'
-            '63141b88e5ffb583617d51364ebc1378fd3a73b8352e13450e982851d40fbaf2')
+sha256sums=('54cc88ab9d7517267d8592905b277424ae441f3d7209c7ad1236533c2be6ee35'
+            'ca2909ae6814bb04b30b2aed627c0058cc2e96c664043d81e9efa89ef6aeb013'
+            'a841aa011edf6bae0ffbe8ead8177e5056de5a6d7333bb96e16917903de4d868')
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase
