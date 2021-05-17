@@ -1,33 +1,32 @@
-# Maintainer: Cole Kowalski  <cole@northernbloc.org>
+# Maintainer: Jan Alexander Steffens (heftig) <heftig@archlinux.org>
 
-pkgbase=linux-cmk
-pkgver=5.5.6
+pkgbase=linux
+pkgver=5.11.21
 pkgrel=1
 pkgdesc='Linux'
-_srctag=v${pkgver##*.}
+_srctag=v${pkgver%.*}-${pkgver##*.}
 url="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tag/?h=$_srctag"
 arch=(x86_64)
 license=(GPL2)
 makedepends=(
-  bc kmod libelf
+  bc kmod libelf pahole cpio perl tar xz
   xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick
   git
 )
 options=('!strip')
+_srcname=archlinux-linux
 _srcname=linux-${pkgver}
 source=(
   "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-${pkgver}.tar.xz"
-  "zfs-fix.patch"
   config         # the main kernel config file
 )
 validpgpkeys=(
   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
   '647F28654894E3BD457199BE38DBBDC86092693E'  # Greg Kroah-Hartman
-  '8218F88849AAC522E94CF470A5E9288C4FA415FA'  # Jan Alexander Steffens (heftig)
+  'A2FF3A36AAA56654109064AB19802F8B0D70FC30'  # Jan Alexander Steffens (heftig)
 )
-sha256sums=('54cc88ab9d7517267d8592905b277424ae441f3d7209c7ad1236533c2be6ee35'
-            'ca2909ae6814bb04b30b2aed627c0058cc2e96c664043d81e9efa89ef6aeb013'
-            'a841aa011edf6bae0ffbe8ead8177e5056de5a6d7333bb96e16917903de4d868')
+sha256sums=('366ba5bb00be28b604aac630c4f64301063892f27353b299177c396af0ad877f'
+            'bba324c92b62966492f27a02969910be2937668d0b39c7db2bb444e753b642af')
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase
@@ -55,13 +54,13 @@ prepare() {
   make olddefconfig
 
   make -s kernelrelease > version
-  echo "Prepared %s version %s" "$pkgbase" "$(<version)"
+  echo "Prepared $pkgbase version $(<version)"
 }
 
 build() {
   cd $_srcname
-  #make bzImage modules htmldocs
-  make bzImage modules
+  make all
+  make htmldocs
 }
 
 _package() {
@@ -69,6 +68,8 @@ _package() {
   depends=(coreutils kmod initramfs)
   optdepends=('crda: to set the correct wireless channels of your country'
               'linux-firmware: firmware images needed for some devices')
+  provides=(VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE)
+  replaces=(virtualbox-guest-modules-arch wireguard-arch)
 
   cd $_srcname
   local kernver="$(<version)"
@@ -83,17 +84,15 @@ _package() {
   echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
 
   echo "Installing modules..."
-  make INSTALL_MOD_PATH="$pkgdir/usr" modules_install
+  make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
 
   # remove build and source links
   rm "$modulesdir"/{source,build}
-
-  echo "Fixing permissions..."
-  chmod -Rc u=rwX,go=rX "$pkgdir"
 }
 
 _package-headers() {
   pkgdesc="Headers and scripts for building modules for the $pkgdesc kernel"
+  depends=(pahole)
 
   cd $_srcname
   local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
@@ -162,38 +161,34 @@ _package-headers() {
     esac
   done < <(find "$builddir" -type f -perm -u+x ! -name vmlinux -print0)
 
+  echo "Stripping vmlinux..."
+  strip -v $STRIP_STATIC "$builddir/vmlinux"
+
   echo "Adding symlink..."
   mkdir -p "$pkgdir/usr/src"
   ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
-
-  echo "Fixing permissions..."
-  chmod -Rc u=rwX,go=rX "$pkgdir"
 }
 
-#_package-docs() {
-#  pkgdesc="Documentation for the $pkgdesc kernel"
-#
-#  cd $_srcname
-#  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
-#
-#  echo "Installing documentation..."
-#  local src dst
-#  while read -rd '' src; do
-#    dst="${src#Documentation/}"
-#    dst="$builddir/Documentation/${dst#output/}"
-#    install -Dm644 "$src" "$dst"
-#  done < <(find Documentation -name '.*' -prune -o ! -type d -print0)
-#
-#  echo "Adding symlink..."
-#  mkdir -p "$pkgdir/usr/share/doc"
-#  ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
-#
-#  echo "Fixing permissions..."
-#  chmod -Rc u=rwX,go=rX "$pkgdir"
-#}
+_package-docs() {
+  pkgdesc="Documentation for the $pkgdesc kernel"
 
-#pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
-pkgname=("$pkgbase" "$pkgbase-headers")
+  cd $_srcname
+  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
+
+  echo "Installing documentation..."
+  local src dst
+  while read -rd '' src; do
+    dst="${src#Documentation/}"
+    dst="$builddir/Documentation/${dst#output/}"
+    install -Dm644 "$src" "$dst"
+  done < <(find Documentation -name '.*' -prune -o ! -type d -print0)
+
+  echo "Adding symlink..."
+  mkdir -p "$pkgdir/usr/share/doc"
+  ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
+}
+
+pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
 for _p in "${pkgname[@]}"; do
   eval "package_$_p() {
     $(declare -f "_package${_p#$pkgbase}")
